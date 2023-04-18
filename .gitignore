@@ -1,0 +1,12 @@
+Cargo.lock
+rust-pgn-reader/target/
+rust-pgn-reader/.github/*
+lichess_db_standard_rated_2017-02.pgn
+.idea/*
+tf/Lib
+tf/Scripts
+tf/share
+tf/__pycache__
+*.pgn
+*.exe
+*.npz
