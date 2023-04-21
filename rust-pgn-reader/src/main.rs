@@ -2,7 +2,7 @@ use std::io;
 use std::env;
 use std::fs::File;
 
-use ndarray::Array2;
+
 //use shakmaty::{Bitboard, board, Board,Square, Color::*};
 use shakmaty::{fen::Fen, CastlingMode, Chess, Position,  Role, };
 use shakmaty::EnPassantMode::Legal;
@@ -14,7 +14,7 @@ use uciengine::uciengine::*;
 use async_trait::async_trait;
 //use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-use ndarray::{Axis, Array, Array3};
+use ndarray::{Array, Array3};
 use ndarray_npy::NpzWriter;
 
 struct LastPosition {
@@ -74,6 +74,8 @@ async fn main() -> io::Result<()> {
     let file = File::open(&arg[1])?;         
     let uncompressed: Box<dyn io::Read> = Box::new(file);
     let mut reader = BufferedReader::new(uncompressed);
+    
+    
     //let duration = start.elapsed().unwrap();
     //println!("Time to read pgn: {:?}", duration);
     
@@ -83,41 +85,39 @@ async fn main() -> io::Result<()> {
     //reads everything in the file
     reader.read_all(&mut visitor)?;
 
-    //create an ndarray of size the_fens.len()
-    //let fen_count = visitor.the_fens.len();
 
-    //let mut board_3d_arr = Vec::new();
-    let mut board_3d_arr = Array3::zeros((12, 8, 8));
+    //create fen_count variable that is the lengths of the visitor.the_fens
+    let fen_count = visitor.the_fens.len();
+
+    let board_3d_arr:Array3<u8> = Array3::zeros((12, 8, 8));
+
+    //an array of board_3d_arr that is as long as the number of FENs
+    
+    let mut boards = Array::from_shape_fn((1, fen_count), |_| Array3::<u8>::zeros((12, 8, 8)));
 
     let mut eval_vec_centipawn= Vec::new();
     let mut eval_vec_mate = Vec::new();
+
+    //let bb_build = [Role::Pawn, Role:: Bishop, Role::Knight, Role::Queen, Role::King, Role::Rook];
+
+    println!("FEN count: {}", fen_count);
+
     let mut count = 0;   
-
-    let bb_build = [Role::Pawn, Role:: Bishop, Role::Knight, Role::Queen, Role::King, Role::Rook];
-
-    //print out how FEN we have
-    println!("FEN count: {}", visitor.the_fens.len());
-
-    while count < visitor.the_fens.len(){
+    while count < fen_count{
     //while count < 12{
         //for every 100 FEN, provide a progress update
         if count % 100 == 0{
 
             //print copmpletion percentage based on count and total number of FEN
-            println!("***********    {}% complete**********", (count as f32 / visitor.the_fens.len() as f32) * 100.0);
+            println!("***********    {}% complete**********", (count as f32 / fen_count as f32) * 100.0);
             
         }
         
         //set a start time for the beginning of the loop
         //let start = SystemTime::now();
-        
-        let pos:Option<Chess> = Fen::from_position(
-                                    visitor.pos.clone(), Legal)
-                                    .into_position(
-                                    CastlingMode::Standard).ok();
-        let chess = pos.unwrap();
-        let result = eval_move(&visitor.the_fens[count]).await;
 
+        let result = eval_move(&visitor.the_fens[count]).await;
+        
 
         match result {
             Score::Cp(cp) => {
@@ -130,11 +130,16 @@ async fn main() -> io::Result<()> {
             },
 
         }
-        
+       
 
-        //print the current visitor FEN
+        let pos:Option<Chess> = Fen::from_position(
+                                    visitor.pos.clone(), Legal)
+                                    .into_position(
+                                    CastlingMode::Standard).ok();
+        let chess = pos.unwrap();
+        let bitboards = bitbuild(chess);
         
-        //let bitboards = bitbuild(chess);
+            /*
 
         for role in bb_build.iter(){
         
@@ -153,13 +158,19 @@ async fn main() -> io::Result<()> {
             board_3d_arr.push(Axis(0), encoded_role_bb.view()).unwrap();
     
         }
+            */
         
-        //print the resulting board3d array
-        //println!("{:?}", board_3d_arr);
+         //print that made it to this line
+         println!("made it to this line -- 164");
+        let board_3d_arr = one_hot_encoding(&bitboards);
+        boards[[0, count]] = board_3d_arr.clone();
 
+        //print that made it to this line
+        println!("made it to this line -- 166");
 
         count += 1;
     } 
+
     //use the npzwriter to write the board_3d_arr and the eval_vec to a npz file
     let mut npz = NpzWriter::new(File::create("test.npz")?);
     let eval_cp_ndarray = Array::from_vec(eval_vec_centipawn);
@@ -208,7 +219,7 @@ async fn main() -> io::Result<()> {
 
  }
  
- /*
+ 
  fn bitbuild(pos: Chess ) -> Vec<u64>{
     
     let bb_build = [Role::Pawn, Role:: Bishop, Role::Knight, Role::Queen, Role::King, Role::Rook];
@@ -229,16 +240,18 @@ async fn main() -> io::Result<()> {
     bitboards
 
 }
-*/
+
 
 //thanks chatgpt for the help with this function
-fn one_hot_encoding(value: u64) -> Array2<u8> {
-    let bits = (0..64).map(|i| ((value >> i) & 1) as u8);
-    let mut matrix = Array2::<u8>::zeros((8, 8));
+fn one_hot_encoding(values: &Vec<u64>) -> Array3<u8> {
+    let bits = values.iter().flat_map(|&n| (0..64).map(move |i| ((n >> i) & 1) as u8));
+    let mut matrix = Array3::<u8>::zeros((12, 8, 8));
     for (i, bit) in bits.enumerate() {
-        let row = i / 8;
-        let col = i % 8;
-        matrix[[row, col]] = bit;
+        let layer = i / 64;
+        let row = (i % 64) / 8;
+        let col = (i % 64) % 8;
+        matrix[[layer, row, col]] = bit;
     }
     matrix
 }
+
