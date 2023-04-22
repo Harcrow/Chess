@@ -1,24 +1,24 @@
-﻿import tensorflow.keras.models as models
-import tensorflow.keras.layers as layers
-import tensorflow.keras.utils as utils
-import tensorflow.keras.optimizers as optimizers
+﻿import keras.models as models
+import keras.layers as layers
+import keras.utils as utils
+import keras.optimizers as optimizers
 
-import tensorflow.keras.callbacks as callbacks
+import keras.callbacks as callbacks
 
-from tensorflow.keras.callbacks import ModelCheckpoint
+from keras.callbacks import ModelCheckpoint
 
 import numpy
 
 """TENSOR FLOW BEGINS"""
 def build_model_residual(conv_size, conv_depth):
   board3d = layers.Input(shape=(14, 8, 8))
-"""
-magic from brian bong 
-model = Sequential()
-model.add(Dense(256, input_shape=(784,), activation="sigmoid"))
-model.add(Dense(128, activation="sigmoid"))
-model.add(Dense(10, activation="softmax"))
-"""
+  """
+  magic from brian bong 
+  model = Sequential()
+  model.add(Dense(256, input_shape=(784,), activation="sigmoid"))
+  model.add(Dense(128, activation="sigmoid"))
+  model.add(Dense(10, activation="softmax"))
+  """
   # adding the convolutional layers
   x = layers.Conv2D(filters=conv_size, kernel_size=3, padding='same')(board3d)
   for _ in range(conv_depth):
@@ -32,16 +32,17 @@ model.add(Dense(10, activation="softmax"))
     x = layers.Activation('relu')(x)
     x = layers.Flatten()(x)
     x = layers.Dense(1, 'sigmoid')(x)
-
-    return models.Model(inputs=board3d, outputs=x)
+  return models.Model(inputs=board3d, outputs=x)
 
 
 """TRAINING"""
 def get_dataset():
-	container = numpy.load('dataset.npz')
-	board, eval = container['board'], container['eval']
+	container = numpy.load('test.npz')
+	board, eval1, eval2 = container['board_3d_arr'], container['eval']
 	eval = numpy.asarray(eval / abs(eval).max() / 2 + 0.5, dtype=numpy.float32) # normalization (0 - 1)
 	return board, eval
+
+
 
 x_train, y_train = get_dataset()
 #x_train.transpose()

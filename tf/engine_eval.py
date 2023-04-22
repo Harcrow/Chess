@@ -78,23 +78,37 @@ def split_dims(board):
 
   return board3d
 
-db_size = 5000
+#db_size = 5000
 
-#print(sf_array)
-#print(split_array)
+fen_path = r"C:\Users\tjowaisas\OneDrive - Evolv Technology\Documents\Hobby\Chess\AI\tf\fen.txt"
 
-#print(sf_array.ndim)
+#parse the fen file
+with open(fen_path, 'r') as f:
+  fen_list = f.read().splitlines()
+
+#sort the fen_list
+fen_list.sort()
+#remove duplicates
+fen_list = list(dict.fromkeys(fen_list))
+
+#determine length of fen_list
+db_size = len(fen_list)
+
 split_array = numpy.zeros([db_size, 14, 8, 8])
 sf_array = numpy.zeros([db_size,1])
 
 for x in range(db_size):
 
   print("Producing board " + str(x) + " of " + str(db_size))
-  board = random_board()
+  #if fen_list[x] is empty, remove it and go to the next one
+  if fen_list[x] == "":
+    fen_list.pop(x)
+    continue
+  board = chess.Board(fen_list[x])
   sf = stockfish(board, 10)
 
   while sf is None:
-    board = random_board()
+    board = chess.Board(fen_list[x])
     sf = stockfish(board, 10)
 
   #print(sf)
